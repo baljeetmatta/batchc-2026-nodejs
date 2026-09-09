@@ -1,9 +1,19 @@
 const express = require("express");
 const fs = require("fs");
 const path=require("path");
+const cors=require("cors");
+const useRoutes=require("./routes/userRoutes");
 
 const session=require("express-session")
+
 const app = express();
+app.use(cors({
+    origin:"http://localhost:5173",
+    credentials:true
+}))
+app.use(express.json());
+
+// /dashboard->/user/dashvoard /profile ->/user/profile
 app.use(express.static("."));
 app.use(express.urlencoded({ extended: true }));
 app.use(session({
@@ -14,6 +24,8 @@ app.use(session({
         maxAge:60*1000*60
     }
 }))
+app.use("/user",auth, useRoutes)
+
 
 /* END POINTS*/
 
@@ -78,21 +90,81 @@ app.post("/login", (req, res) => {
         {
             req.session.name=results[0].name;
 
-        res.redirect("/dashboard")
+        res.redirect("/user/dashboard")
         }
 
 
     })
 
 })
-app.get("/dashboard",(req,res)=>{
-    console.log(req.session);
-    if(!req.session.name)
-        res.sendFile(path.join(__dirname,"./login.html"));
 
-else
-    res.send("welcome to "+req.session.name);
+app.post("/loginReact", (req, res) => {
 
+    //1. Existing Users
+    fs.readFile("./users.json", "utf-8", (err, data) => {
+        let users = [];
+        if (err)
+            users = [];
+
+        users = JSON.parse(data);
+
+        let results = users.filter((item) => {
+            if (item.username == req.body.username && item.password == req.body.password)
+                return true;
+
+        })
+        if (results.length == 0)
+            res.json({success:false,message:"Invalid user/password"})
+        else
+            //res.send("Welcome user");
+        {
+            req.session.name=results[0].name;
+            res.json({success:true,message:"Welcome"})
+       // res.redirect("/user/dashboard")
+        }
+
+
+    })
+
+})
+// app.get("/dashboard",(req,res)=>{
+//     console.log(req.session);
+//     if(!req.session.name)
+//         res.redirect("/login");//get
+//        // res.sendFile(path.join(__dirname,"./login.html"));
+
+// else
+//     res.send("welcome to "+req.session.name);
+
+// })
+
+// app.get("/profile",(req,res)=>{
+// if(!req.session.name)
+//     res.redirect("/login")
+// else
+// res.send("Profile page")
+// });
+
+//  app.get("/dashboard",auth,(req,res)=>{
+
+//     res.send("Welcome "+req.session.name);
+
+//  })
+//  app.get("/profile",auth,(req,res)=>{
+//     res.send("Profile page")
+//  })
+
+ function auth(req,res,next)
+ {
+        if(!req.session.name)
+            res.redirect("/login");
+        else
+            next();
+
+ }
+
+app.get("/login",(req,res)=>{
+    res.sendFile(path.join(__dirname,"./login.html"));
 })
 app.listen(5000, (err) => {
 
